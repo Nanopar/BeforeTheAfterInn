@@ -1,48 +1,57 @@
 import re
 
-def obliterate_edges_and_scroll(file_path):
+def obliterate_landscape_gap(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Find the exact ensureAspectRatio function from your working code
+    # Find the exact ensureAspectRatio function
     old_func_pattern = r'function ensureAspectRatio\(\)\s*\{[\s\S]*?canvasElement\.style\.width = newWidth \+ "px";\n\s*\}'
     
-    # Apply stretch + runtime JS layout fixes (Zero HTML/CSS structural edits)
+    # Overwrite ensureAspectRatio to target true physical viewport & continuously snap
     new_func = """function ensureAspectRatio() {
         if (canvasElement === undefined) return;
-        if (startingHeight === undefined && startingWidth === undefined) return;
 
         canvasElement.classList.add("active");
 
-        // 1. DYNAMICALLY LOCK BODY: Prevents top/bottom page scrolling safely at runtime
+        // 1. Force body and html to stop scroll bounces
         document.documentElement.style.overflow = "hidden";
         document.body.style.overflow = "hidden";
         document.body.style.margin = "0px";
         document.body.style.padding = "0px";
-        
-        // 2. NUKE FLEX MARGINS: Removes the automatic centering margins pushing the game down
         canvasElement.style.margin = "0px";
         canvasElement.style.padding = "0px";
 
-        // 3. BRUTE FORCE STRETCH (Your working code)
-        canvasElement.style.height = window.innerHeight + "px";
-        canvasElement.style.width = window.innerWidth + "px";
+        // 2. Determine actual max landscape/portrait dimensions regardless of address bar lag
+        var w = Math.max(window.innerWidth, document.documentElement.clientWidth);
+        var h = Math.max(window.innerHeight, document.documentElement.clientHeight);
+
+        // On mobile orientation shifts, use the full visual viewport if available
+        if (window.visualViewport) {
+          w = window.visualViewport.width;
+          h = window.visualViewport.height;
+        }
+
+        canvasElement.style.width = w + "px";
+        canvasElement.style.height = h + "px";
         canvasElement.style.maxWidth = "100vw";
         canvasElement.style.maxHeight = "100vh";
 
-        // 4. RESET VIEWPORT OFFSET: Snaps mobile browser address bar bounce to top
         window.scrollTo(0, 0);
+      }
+
+      // Re-trigger on visual viewport resize (when mobile URL bar hides/shows)
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', ensureAspectRatio);
       }"""
 
-    # Apply the replacement
     new_content, count = re.subn(old_func_pattern, new_func, content)
 
     if count > 0:
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(new_content)
-        print("SUCCESS: Edges obliterated and scroll locked cleanly!")
+        print("SUCCESS: Landscape gap eliminated!")
     else:
-        print("FAILED: Could not find the ensureAspectRatio function to replace.")
+        print("FAILED: Could not find function.")
 
 if __name__ == "__main__":
-    obliterate_edges_and_scroll('index.html')
+    obliterate_landscape_gap('index.html')
