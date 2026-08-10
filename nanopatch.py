@@ -1,25 +1,32 @@
 import re
 
-def fix_gx_html(file_path):
+def fix_canvas_stretch(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
-        html_content = f.read()
+        content = f.read()
 
-    # Find and update only the ResizeObserver block to handle orientation recovery smoothly
-    old_observer = re.search(r'const resizeObserver = new ResizeObserver\(.+?\);\s*resizeObserver\.observe\(.+?\);', html_content, re.DOTALL)
+    # 1. Disable GM's forced aspect ratio calculation
+    content = re.sub(
+        r'const\s+CHANGE_ASPECT_RATIO\s*=\s*true\s*;',
+        'const CHANGE_ASPECT_RATIO = false;',
+        content
+    )
+
+    # 2. Inject CSS rules to force the canvas element to fill the viewport 100%
+    css_fix = """
+      canvas.emscripten {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        object-fit: fill;
+    """
     
-    new_observer = """const resizeObserver = new ResizeObserver(() => {
-        window.requestAnimationFrame(ensureAspectRatio);
-        setTimeout(() => window.requestAnimationFrame(ensureAspectRatio), 100);
-      });
-      resizeObserver.observe(document.body);"""
-
-    if old_observer:
-        html_content = html_content.replace(old_observer.group(0), new_observer)
-        print("Successfully patched resize observer!")
-    else:
-        print("Could not find resizeObserver block.")
+    content = content.replace('canvas.emscripten {', css_fix, 1)
 
     with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(html_content)
+        f.write(content)
 
-fix_gx_html('index.html')
+    print("Patched canvas styling and disabled aspect ratio lock!")
+
+if __name__ == "__main__":
+    fix_canvas_stretch('index.html')
