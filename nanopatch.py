@@ -1,58 +1,48 @@
 import re
 
-def fix_and_prevent_scroll(file_path):
+def obliterate_edges_and_scroll(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # 1. Restore the WORKING edge-to-edge canvas stretch JS function from Turn 5
+    # Find the exact ensureAspectRatio function from your working code
     old_func_pattern = r'function ensureAspectRatio\(\)\s*\{[\s\S]*?canvasElement\.style\.width = newWidth \+ "px";\n\s*\}'
-    working_js_func = """function ensureAspectRatio() {
+    
+    # Apply stretch + runtime JS layout fixes (Zero HTML/CSS structural edits)
+    new_func = """function ensureAspectRatio() {
         if (canvasElement === undefined) return;
         if (startingHeight === undefined && startingWidth === undefined) return;
 
         canvasElement.classList.add("active");
 
+        // 1. DYNAMICALLY LOCK BODY: Prevents top/bottom page scrolling safely at runtime
+        document.documentElement.style.overflow = "hidden";
+        document.body.style.overflow = "hidden";
+        document.body.style.margin = "0px";
+        document.body.style.padding = "0px";
+        
+        // 2. NUKE FLEX MARGINS: Removes the automatic centering margins pushing the game down
+        canvasElement.style.margin = "0px";
+        canvasElement.style.padding = "0px";
+
+        // 3. BRUTE FORCE STRETCH (Your working code)
         canvasElement.style.height = window.innerHeight + "px";
         canvasElement.style.width = window.innerWidth + "px";
         canvasElement.style.maxWidth = "100vw";
         canvasElement.style.maxHeight = "100vh";
+
+        // 4. RESET VIEWPORT OFFSET: Snaps mobile browser address bar bounce to top
+        window.scrollTo(0, 0);
       }"""
 
-    content, js_count = re.subn(old_func_pattern, working_js_func, content)
+    # Apply the replacement
+    new_content, count = re.subn(old_func_pattern, new_func, content)
 
-    # 2. Add lightweight anti-scroll CSS & event listener (Safe for WebGL)
-    safe_anti_scroll = """
-    <style>
-      html, body {
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-      }
-      canvas.emscripten {
-        margin: 0 !important;
-        padding: 0 !important;
-        display: block;
-      }
-    </style>
-    <script>
-      // Prevent touch drag scrolling without modifying document layout flow
-      document.addEventListener('touchmove', function(e) {
-        if (e.target === document.documentElement || e.target === document.body) {
-          e.preventDefault();
-        }
-      }, { passive: false });
-    </script>
-  </head>
-    """
-
-    content, css_count = re.subn(r'</head>', safe_anti_scroll, content, flags=re.IGNORECASE)
-
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(content)
-
-    print(f"Patched successfully! (JS Restored: {js_count > 0}, Safe Scroll Prevented: {css_count > 0})")
+    if count > 0:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        print("SUCCESS: Edges obliterated and scroll locked cleanly!")
+    else:
+        print("FAILED: Could not find the ensureAspectRatio function to replace.")
 
 if __name__ == "__main__":
-    fix_and_prevent_scroll('index.html')
+    obliterate_edges_and_scroll('index.html')
