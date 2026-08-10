@@ -92,14 +92,7 @@
       }
 
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-      
       canvas.emscripten {
-        width: 100vw !important;
-        height: 100vh !important;
-        max-width: 100vw !important;
-        max-height: 100vh !important;
-        object-fit: fill;
-    
         display: none;
         border: 0px none;
         background-color: black;
@@ -673,7 +666,7 @@
     </script>
 
     <script type="text/javascript">
-      const CHANGE_ASPECT_RATIO = false;
+      const CHANGE_ASPECT_RATIO = true;
 
       var bodyElement = document.getElementsByTagName("body")[0];
       var statusElement = document.getElementById("status");
@@ -871,7 +864,7 @@
 "b7692ef32b6fab43c77fb58735db6034",
 "75dbb242c2e3c7a074418a2ed001b1fa",
 "e8f1e8db8cf996f8715a6f2164c2e44e",
-"9da904d37a402d79f3928ce6a886a1c6" ];
+"0a3e60a5a8cf8cba1170e9be1160e99f" ];
       }
 
       function onFirstFrameRendered()
@@ -1563,7 +1556,22 @@
         wallpaper_update_config(JSON.stringify(wallpaperConfig));
       }
     </script>
-    <script async type="text/javascript" src="runner.js"></script>
+    <script async type="text/javascript" src="runner.js">
+      window.addEventListener("orientationchange", function() {
+        setTimeout(function() {
+          if (typeof ensureAspectRatio === "function") {
+            ensureAspectRatio();
+          }
+        }, 200);
+      });
+      
+      window.addEventListener("resize", function() {
+        if (typeof ensureAspectRatio === "function") {
+          ensureAspectRatio();
+        }
+      });
+    
+    </script>
 
     <!-- Custom BodyEnd code is injected here -->
     
