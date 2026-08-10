@@ -1,12 +1,12 @@
 import re
 
-def apply_full_mobile_fix(file_path):
+def fix_and_prevent_scroll(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # 1. Force Canvas Stretch (Obliterates Side Borders)
+    # 1. Restore the WORKING edge-to-edge canvas stretch JS function from Turn 5
     old_func_pattern = r'function ensureAspectRatio\(\)\s*\{[\s\S]*?canvasElement\.style\.width = newWidth \+ "px";\n\s*\}'
-    new_func = """function ensureAspectRatio() {
+    working_js_func = """function ensureAspectRatio() {
         if (canvasElement === undefined) return;
         if (startingHeight === undefined && startingWidth === undefined) return;
 
@@ -18,42 +18,41 @@ def apply_full_mobile_fix(file_path):
         canvasElement.style.maxHeight = "100vh";
       }"""
 
-    content, js_count = re.subn(old_func_pattern, new_func, content)
+    content, js_count = re.subn(old_func_pattern, working_js_func, content)
 
-    # 2. Inject Anti-Scroll & Edge-Pinning CSS (Nukes Top/Bottom Scrolling)
-    anti_scroll_css = """
+    # 2. Add lightweight anti-scroll CSS & event listener (Safe for WebGL)
+    safe_anti_scroll = """
     <style>
       html, body {
-        width: 100vw !important;
-        height: 100vh !important;
-        height: 100svh !important;
+        width: 100% !important;
+        height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        touch-action: none !important;
       }
-      
       canvas.emscripten {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
         margin: 0 !important;
         padding: 0 !important;
+        display: block;
       }
     </style>
+    <script>
+      // Prevent touch drag scrolling without modifying document layout flow
+      document.addEventListener('touchmove', function(e) {
+        if (e.target === document.documentElement || e.target === document.body) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+    </script>
   </head>
     """
 
-    content, css_count = re.subn(r'</head>', anti_scroll_css, content, flags=re.IGNORECASE)
+    content, css_count = re.subn(r'</head>', safe_anti_scroll, content, flags=re.IGNORECASE)
 
-    # Write patched file
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
 
-    print(f"Patch complete! (JS Stretched: {js_count > 0}, Anti-Scroll Applied: {css_count > 0})")
+    print(f"Patched successfully! (JS Restored: {js_count > 0}, Safe Scroll Prevented: {css_count > 0})")
 
 if __name__ == "__main__":
-    apply_full_mobile_fix('index.html')
+    fix_and_prevent_scroll('index.html')
